@@ -31,9 +31,10 @@ class TexturePathProvider:
 
 
 class EmbeddedManifestFactory:
-    def __init__(self, source_manifest, theme_names, state_names, output_dir, download_textures=True):
+    def __init__(self, source_manifest, theme_names, state_names, platforms, output_dir, download_textures=True):
         self._source_manifest = source_manifest
         self._theme_names = set(theme_names)
+        self._platforms = platforms
         self._state_names = set(state_names)
         self._output_dir = output_dir
         self._should_download_textures = download_textures
@@ -114,6 +115,11 @@ class EmbeddedManifestFactory:
         return themes_to_use
 
     def _get_supported_platforms(self, manifest_json):
+        if self._platforms is not None:
+            for key in self._platforms:
+                if "AssetRoot_%s" % key not in manifest_json:
+                    raise ValueError("Couldn't find %s in platforms supported by manifest" % key)
+            return self._platforms
         platform_strings = [key for key in manifest_json if key.startswith("AssetRoot_")]
         platforms = [string.split("_")[1] for string in platform_strings]
         return platforms
@@ -204,11 +210,11 @@ class EmbeddedManifestFactory:
             manifest_json["AssetExtension_{0}".format(platform)] = asset_ext
 
 
-def create_embedded_manifest(source_manifest, theme_names, state_names, output_dir):
+def create_embedded_manifest(source_manifest, theme_names, state_names, platforms, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    factory = EmbeddedManifestFactory(source_manifest, theme_names, state_names, output_dir)
+    factory = EmbeddedManifestFactory(source_manifest, theme_names, state_names, platforms, output_dir)
     factory.create_embedded_manifest()
 
 
@@ -221,6 +227,8 @@ if __name__ == "__main__":
                            help="the names of the themes to extract")
     argparser.add_argument("--state_names", "-s", type=str, required=True, nargs="+",
                            help="the names of the states to extract from the theme")
+    argparser.add_argument("--platforms", "-p", type=str, nargs="+",
+                           help="list of specific platforms to generate theme data for")
     argparser.add_argument("--output_dir", "-o", type=str, required=True,
                            help="the location to output the embedded textures and manifest")
     args = argparser.parse_args()
@@ -229,4 +237,5 @@ if __name__ == "__main__":
         source_manifest=args.source_manifest,
         theme_names=args.theme_names,
         state_names=args.state_names,
+        platforms=args.platforms,
         output_dir=args.output_dir)
